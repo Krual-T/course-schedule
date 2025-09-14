@@ -1,0 +1,169 @@
+/* 对话框遮罩层 */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* 对话框内容 */
+.dialog-content {
+    background: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    animation: dialogSlideIn 0.3s ease-out;
+}
+
+@keyframes dialogSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 对话框头部 */
+.dialog-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dialog-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+.dialog-close {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+    transition: color 0.3s;
+}
+
+.dialog-close:hover {
+    color: #666;
+}
+
+/* 对话框内容区 */
+.dialog-body {
+    padding: 2rem;
+}
+
+/* 文件拖放区 */
+.file-drop-zone {
+    border: 2px dashed #667eea;
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.file-drop-zone:hover {
+    border-color: #764ba2;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.file-drop-zone.drag-over {
+    border-color: #764ba2;
+    background: rgba(102, 126, 234, 0.15);
+    transform: scale(1.02);
+}
+
+.file-drop-zone i {
+    font-size: 2rem;
+    color: #667eea;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.file-drop-zone p {
+    margin: 0;
+    color: #666;
+    font-size: 1rem;
+}
+
+.file-drop-zone small {
+    display: block;
+    color: #999;
+    margin-top: 0.5rem;
+}
+
+/* 导入选项 */
+.import-options {
+    margin-top: 1.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    color: #666;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #667eea;
+}
+
+/* 对话框底部 */
+.dialog-footer {
+    padding: 1.5rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.dialog-btn {
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+    border: none;
+}
+
+.dialog-btn.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.dialog-btn.primary:hover {
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+}
+
+.dialog-btn.secondary {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.dialog-btn.secondary:hover {
+    background: #e5e5e5;
+}

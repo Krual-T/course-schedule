@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(wrangler secret put:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
