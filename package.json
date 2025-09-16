@@ -1,5 +1,4 @@
-{
-	"name": "course-schedule-frontend",
+{ "name": "course-schedule",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {

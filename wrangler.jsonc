@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "course-schedule-frontend",
+	"name": "course-schedule",
 	"main": "src/worker.js",
 	"compatibility_date": "2025-09-10",
 	"compatibility_flags": [
