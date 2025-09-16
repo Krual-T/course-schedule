@@ -129,11 +129,54 @@ function renderAppShell() {
                                             <input type="checkbox" id="syncCalendar">
                                             <span>同步到飞书日程</span>
                                         </label>
+                                        <div id="reminderOptions" class="reminder-options" style="display: none; margin-top: 10px; padding-left: 25px;">
+                                            <label style="display: block; margin-bottom: 5px; color: #666;">提醒时间：</label>
+                                            <div class="reminder-radio-group">
+                                                <label class="radio-label">
+                                                    <input type="radio" name="reminder" value="none" checked>
+                                                    <span>不提醒</span>
+                                                </label>
+                                                <label class="radio-label">
+                                                    <input type="radio" name="reminder" value="5min">
+                                                    <span>5分钟前</span>
+                                                </label>
+                                                <label class="radio-label">
+                                                    <input type="radio" name="reminder" value="15min">
+                                                    <span>15分钟前</span>
+                                                </label>
+                                                <label class="radio-label">
+                                                    <input type="radio" name="reminder" value="30min">
+                                                    <span>30分钟前</span>
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="dialog-footer">
                                     <button class="dialog-btn secondary" id="cancelImport">取消</button>
                                     <button class="dialog-btn primary" id="confirmImport">导入</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 同步进度对话框 -->
+                        <div id="syncProgressDialog" class="dialog-overlay" style="display: none;">
+                            <div class="dialog-content" style="max-width: 400px;">
+                                <div class="dialog-header">
+                                    <h3>正在同步到飞书日程</h3>
+                                </div>
+                                <div class="dialog-body" style="padding: 20px;">
+                                    <div class="sync-progress-container">
+                                        <div class="progress-bar">
+                                            <div id="progressBarFill" class="progress-bar-fill" style="width: 0%"></div>
+                                        </div>
+                                        <div class="progress-text">
+                                            <span id="progressText">准备同步...</span>
+                                        </div>
+                                        <div class="progress-details" style="margin-top: 10px;">
+                                            <small id="progressDetails" style="color: #666;"></small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -302,7 +345,8 @@ async function handleLogin() {
 	// 生成授权链接并跳转
 	const authUrl = await feishuClient.getAuthorizationUrl([
 		'base:view:read', 'base:table:read', 'base:app:read',
-		'base:record:create', 'base:record:retrieve'
+		'base:record:create', 'base:record:retrieve',
+		'calendar:calendar', 'calendar:calendar:read', 'calendar:event'
 		// 'base:record:retrieve', 'bitable:app'
 	]);
 	window.location.href = authUrl;
@@ -362,7 +406,7 @@ function showUserSection(userInfo) {
 
 
 // 处理文件导入
-async function handleFileImport(event, customFile = null, shouldSync = false) {
+async function handleFileImport(event, customFile = null, shouldSync = false, reminderOption = 'none') {
 	const file = customFile || (event?.target.files[0]);
 	if (!file) return;
 
@@ -408,14 +452,17 @@ async function handleFileImport(event, customFile = null, shouldSync = false) {
 		// 如果选择了同步到日程
 		if (shouldSync) {
 			showMessage('正在同步到飞书日程...');
-			await syncCoursesToCalendar(courses);
+			await syncCoursesToCalendar(courses, reminderOption);
 		}
 
 		// 根据当前周过滤并渲染
 		const weekCourses = courseSchedule.filterCoursesByWeek(courses, currentViewWeek);
 		renderCourseTable(weekCourses);
 		updateWeekDisplay();
-		showMessage(`成功导入 ${courses.length} 门课程${shouldSync ? '并同步到日程' : ''}`);
+		
+		if (!shouldSync) {
+			showMessage(`成功导入 ${courses.length} 门课程`);
+		}
 
 		// 清空文件输入，允许重复选择同一个文件
 		if (event?.target) {
@@ -972,6 +1019,31 @@ function closeImportDialog() {
 	// 重置拖放区域样式
 	const dropZone = document.getElementById('dropZone');
 	dropZone.classList.remove('drag-over');
+	dropZone.innerHTML = `
+		<i class="fa fa-cloud-upload"></i>
+		<p>拖放文件到这里或点击选择文件</p>
+		<small>支持 .json 格式文件</small>
+	`;
+	// 重置文件输入
+	const fileInput = document.getElementById('courseFile');
+	if (fileInput) {
+		fileInput.value = '';
+	}
+	// 重置同步选项
+	const syncCalendarCheckbox = document.getElementById('syncCalendar');
+	if (syncCalendarCheckbox) {
+		syncCalendarCheckbox.checked = false;
+	}
+	// 隐藏提醒选项
+	const reminderOptions = document.getElementById('reminderOptions');
+	if (reminderOptions) {
+		reminderOptions.style.display = 'none';
+	}
+	// 重置提醒选项为默认值
+	const defaultReminder = document.querySelector('input[name="reminder"][value="none"]');
+	if (defaultReminder) {
+		defaultReminder.checked = true;
+	}
 }
 
 // 初始化导入对话框
@@ -981,10 +1053,32 @@ function initImportDialog() {
 	const closeBtn = document.getElementById('closeImportDialog');
 	const cancelBtn = document.getElementById('cancelImport');
 	const confirmBtn = document.getElementById('confirmImport');
+	const syncCalendarCheckbox = document.getElementById('syncCalendar');
+	const reminderOptions = document.getElementById('reminderOptions');
 
 	// 关闭按钮事件
 	closeBtn?.addEventListener('click', closeImportDialog);
 	cancelBtn?.addEventListener('click', closeImportDialog);
+	
+	// 同步日程复选框变化事件
+	syncCalendarCheckbox?.addEventListener('change', (e) => {
+		if (e.target.checked) {
+			reminderOptions.style.display = 'block';
+			// 添加淡入动画
+			reminderOptions.style.opacity = '0';
+			setTimeout(() => {
+				reminderOptions.style.transition = 'opacity 0.3s ease';
+				reminderOptions.style.opacity = '1';
+			}, 10);
+		} else {
+			// 淡出动画
+			reminderOptions.style.transition = 'opacity 0.3s ease';
+			reminderOptions.style.opacity = '0';
+			setTimeout(() => {
+				reminderOptions.style.display = 'none';
+			}, 300);
+		}
+	});
 
 	// 确认导入按钮事件
 	confirmBtn?.addEventListener('click', async () => {
@@ -997,7 +1091,15 @@ function initImportDialog() {
 
 		// 获取是否同步到日程的选项
 		const shouldSync = document.getElementById('syncCalendar').checked;
-		await handleFileImport(null, file, shouldSync);
+		
+		// 获取提醒选项
+		let reminderOption = 'none';
+		if (shouldSync) {
+			const selectedReminder = document.querySelector('input[name="reminder"]:checked');
+			reminderOption = selectedReminder ? selectedReminder.value : 'none';
+		}
+		
+		await handleFileImport(null, file, shouldSync, reminderOption);
 		closeImportDialog();
 	});
 
@@ -1056,9 +1158,61 @@ function initImportDialog() {
 }
 
 // 处理课程同步到日程
-async function syncCoursesToCalendar(courses) {
-	// TODO: 实现课程同步到飞书日程的功能
-	// 同步课程到日程的功能待实现
+async function syncCoursesToCalendar(courses, reminderOption = 'none') {
+	// 导入CalendarSync类
+	const { CalendarSync } = await import('./js/CalendarSync.js');
+	const calendarSync = new CalendarSync(feishuClient);
+	
+	// 显示进度对话框
+	const progressDialog = document.getElementById('syncProgressDialog');
+	const progressBarFill = document.getElementById('progressBarFill');
+	const progressText = document.getElementById('progressText');
+	const progressDetails = document.getElementById('progressDetails');
+	
+	progressDialog.style.display = 'flex';
+	
+	try {
+		// 同步课程到日历
+		const result = await calendarSync.syncCoursesToCalendar(
+			courses,
+			reminderOption,
+			(progress) => {
+				// 更新进度条
+				const percentage = Math.round((progress.current / progress.total) * 100);
+				progressBarFill.style.width = `${percentage}%`;
+				progressText.textContent = `正在同步 (${progress.current}/${progress.total})`;
+				progressDetails.textContent = `正在处理: ${progress.courseName}`;
+			}
+		);
+		
+		// 隐藏进度对话框
+		setTimeout(() => {
+			progressDialog.style.display = 'none';
+		}, 500);
+		
+		// 显示同步结果
+		if (result.failed.length > 0) {
+			showMessage(
+				`同步完成：成功 ${result.success.length} 门，失败 ${result.failed.length} 门`,
+				'warning'
+			);
+			console.error('同步失败的课程:', result.failed);
+		} else {
+			showMessage(
+				`成功同步 ${result.success.length} 门课程到飞书日程`,
+				'success'
+			);
+		}
+		
+		return result;
+		
+	} catch (error) {
+		// 隐藏进度对话框
+		progressDialog.style.display = 'none';
+		
+		showMessage('同步到日程失败: ' + error.message, 'error');
+		throw error;
+	}
 }
 
 // 更新日期时间显示

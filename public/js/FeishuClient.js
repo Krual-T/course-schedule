@@ -307,6 +307,20 @@ export class FeishuClient {
     }
 
     /**
+     * PUT请求快捷方法
+     */
+    async put(path, data = null) {
+        return this.request('PUT', path, data);
+    }
+
+    /**
+     * DELETE请求快捷方法
+     */
+    async delete(path, params = null) {
+        return this.request('DELETE', path, null, params);
+    }
+
+    /**
      * 检查是否已登录（令牌存在且未过期）
      * @returns {boolean} 是否已登录
      */
