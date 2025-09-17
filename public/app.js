@@ -442,7 +442,7 @@ async function handleLogin() {
 	// 生成授权链接并跳转
 	const authUrl = await feishuClient.getAuthorizationUrl([
 		'base:view:read', 'base:table:read', 'base:app:read',
-		'base:record:create', 'base:record:retrieve',
+		'base:record:create', 'base:record:retrieve', 'base:record:update',
 		'calendar:calendar', 'calendar:calendar:create', 'calendar:calendar:read'
 	]);
 	window.location.href = authUrl;

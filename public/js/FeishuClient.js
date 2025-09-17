@@ -586,10 +586,16 @@ async function getConfig() {
         const response = await fetch('/api/config');
         return await response.json();
     } catch (error) {
-                // 返回默认值
+        // 根据当前环境动态设置重定向 URI
+        const currentOrigin = window.location.origin;
+        const redirectUri = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1') 
+            ? 'http://localhost:8787' 
+            : currentOrigin + '/';
+            
+        // 返回默认值
         return {
             VITE_FEISHU_APP_ID: '',
-            VITE_FEISHU_REDIRECT_URI: 'http://localhost:8787',
+            VITE_FEISHU_REDIRECT_URI: redirectUri,
             VITE_FEISHU_DATABASE_ID: ''
         };
     }
@@ -602,9 +608,15 @@ let feishuClient = null;
 export async function initFeishuClient() {
     if (!feishuClient) {
         const config = await getConfig();
+        // 如果没有获取到配置，使用动态的重定向 URI
+        const redirectUri = config.VITE_FEISHU_REDIRECT_URI || 
+            (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+                ? 'http://localhost:8787' 
+                : window.location.origin + '/');
+        
         feishuClient = new FeishuClient({
             appId: config.VITE_FEISHU_APP_ID,
-            redirectUri: config.VITE_FEISHU_REDIRECT_URI || 'http://localhost:8787',
+            redirectUri: redirectUri,
         });
     }
     return feishuClient;
