@@ -448,6 +448,65 @@ export class FeishuClient {
                         throw error;
         }
     }
+    
+    /**
+     * 获取用户的全部课程（不限制周数）
+     * @param {string} openId 用户的open_id
+     * @returns {Promise<Object>} 全部课程数据
+     */
+    async getAllUserCourses(openId = null) {
+        const config = await getConfig();
+        const appToken = config.VITE_FEISHU_DATABASE_ID;
+        if (!appToken) {
+            throw new Error('未找到多维表app_token配置');
+        }
+
+        try {
+            // 如果没有提供openId，获取当前用户信息
+            if (!openId) {
+                const userInfo = await this.getCurrentUser();
+                openId = userInfo.openId;
+            }
+
+            // 1. 获取指定app下的所有表，找到course_information表
+            const tablesData = await this.get(`/bitable/v1/apps/${appToken}/tables`, {
+                page_size: 10
+            });
+
+            const targetTable = tablesData.items.find(
+                table => table.name === 'course_information'
+            );
+
+            if (!targetTable) {
+                throw new Error('未找到名为course_information的表');
+            }
+
+            // 2. 构建查询条件 - 只过滤用户，不限制周数
+            const searchBody = {
+                filter: {
+                    conjunction: "and",
+                    conditions: [
+                        {
+                            field_name: "student_info",
+                            operator: "is",
+                            value: [openId]
+                        }
+                    ]
+                }
+            };
+
+            // 3. 调用记录搜索接口
+            const recordsResponse = await this.post(
+                `/bitable/v1/apps/${appToken}/tables/${targetTable.table_id}/records/search`,
+                searchBody
+            );
+
+            return recordsResponse; // 返回格式：{ items: [...记录列表] }
+
+        } catch (error) {
+            throw error;
+        }
+    }
 
     /**
      * 获取指定名称的多维表信息
@@ -483,7 +542,7 @@ export class FeishuClient {
     /**
      * 导入课程到飞书多维表
      * @param {Array<Object>} courses 课程数据数组
-     * @returns {Promise<Array<Object>>} 导入成功的课程记录数组
+     * @returns {Promise<Array<Object>>} 导入成功的课程记录数组（飞书格式）
      */
     async importMetadatasToCourseInfoTable(courses) {
         try {
@@ -512,8 +571,8 @@ export class FeishuClient {
                 requestBody
             );
 
-            // 6. 返回创建成功的记录
-            return response.records;
+            // 6. 返回创建成功的记录（飞书格式，包含record_id等信息）
+            return response.records || [];
 
         } catch (error) {
                         throw new Error(`导入课程失败: ${error.message}`);

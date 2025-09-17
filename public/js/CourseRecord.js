@@ -27,6 +27,10 @@ export class CourseRecord {
         this.notes = data.notes || '';
         this.color = data.color || this.generateColor();
         
+        // 新增字段 - 经纬度和事件ID
+        this.latitudeAndLongitude = data.latitudeAndLongitude || '';  // 经纬度字符串 "118.787047,31.912544"
+        this.eventId = data.eventId || '';  // 飞书日历事件ID
+        
         // 时间戳
         this.lastSyncTime = data.lastSyncTime || null;
         
@@ -61,6 +65,9 @@ export class CourseRecord {
             if (Array.isArray(field) && field[0]) {
                 return field[0].text || '';
             }
+            if (typeof field === 'string') {
+                return field;
+            }
             return '';
         };
         
@@ -85,6 +92,8 @@ export class CourseRecord {
             courseCode: getText(fields.course_code),
             teacher: getText(fields.teacher),
             location: getText(fields.location),
+            latitudeAndLongitude: getText(fields.latitude_and_longitude),  // 新增经纬度字段
+            eventId: getText(fields.event_id),  // 新增事件ID字段
             // classroom: getText(fields.classroom),
             dayOfWeek: getNumber(fields.day_of_week, 1),
             startPeriod: getNumber(fields.start_period, 1),

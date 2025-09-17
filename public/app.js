@@ -13,7 +13,7 @@ let allCourses = [];
 document.addEventListener('DOMContentLoaded', async () => {
 	// 初始化飞书客户端
 	feishuClient = await initFeishuClient();
-	
+
 	// 检查是否是授权回调
 	const params = new URLSearchParams(window.location.search);
 	const code = params.get('code');
@@ -102,6 +102,20 @@ function renderAppShell() {
                         </div>
                         
                         <div class="sidebar-item">
+                            <button class="sidebar-btn" id="homeBtn">
+                                <i class="fa fa-home"></i>
+                                <span class="sidebar-text">课程表</span>
+                            </button>
+                        </div>
+                        
+                        <div class="sidebar-item">
+                            <button class="sidebar-btn" id="courseManageBtn">
+                                <i class="fa fa-list-alt"></i>
+                                <span class="sidebar-text">课程管理</span>
+                            </button>
+                        </div>
+                        
+                        <div class="sidebar-item">
                             <button class="sidebar-btn" id="importBtn">
                                 <i class="fa fa-upload"></i>
                                 <span class="sidebar-text">导入课程</span>
@@ -131,24 +145,13 @@ function renderAppShell() {
                                         </label>
                                         <div id="reminderOptions" class="reminder-options" style="display: none; margin-top: 10px; padding-left: 25px;">
                                             <label style="display: block; margin-bottom: 5px; color: #666;">提醒时间：</label>
-                                            <div class="reminder-radio-group">
-                                                <label class="radio-label">
-                                                    <input type="radio" name="reminder" value="none" checked>
-                                                    <span>不提醒</span>
-                                                </label>
-                                                <label class="radio-label">
-                                                    <input type="radio" name="reminder" value="5min">
-                                                    <span>5分钟前</span>
-                                                </label>
-                                                <label class="radio-label">
-                                                    <input type="radio" name="reminder" value="15min">
-                                                    <span>15分钟前</span>
-                                                </label>
-                                                <label class="radio-label">
-                                                    <input type="radio" name="reminder" value="30min">
-                                                    <span>30分钟前</span>
-                                                </label>
-                                            </div>
+                                            <select name="reminder" style="width: 150px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px;">
+                                                <option value="none" selected>不提醒</option>
+                                                <option value="5min">5分钟前</option>
+                                                <option value="15min">15分钟前</option>
+                                                <option value="30min">30分钟前</option>
+                                                <option value="60min">1小时前</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -181,9 +184,60 @@ function renderAppShell() {
                             </div>
                         </div>
                         
+                        <!-- 创建全部日程对话框 -->
+                        <div id="syncAllDialog" class="dialog-overlay" style="display: none;">
+                            <div class="dialog-content" style="max-width: 600px;">
+                                <div class="dialog-header">
+                                    <h3>创建全部课程日程</h3>
+                                    <button class="dialog-close" id="closeSyncAllDialog">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="dialog-body">
+                                    <div class="course-list-container" style="max-height: 400px; overflow-y: auto;">
+                                        <div id="courseCheckList" class="course-check-list">
+                                            <!-- 动态生成课程列表 -->
+                                        </div>
+                                    </div>
+                                    <div class="sync-options" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                                        <div style="margin-bottom: 15px;">
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" id="selectAllCourses" checked>
+                                                <span>全选课程</span>
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <label style="display: block; margin-bottom: 5px; color: #666;">提醒时间：</label>
+                                            <select name="batchReminder" style="width: 150px; padding: 6px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 14px;">
+                                                <option value="none" selected>不提醒</option>
+                                                <option value="5min">5分钟前</option>
+                                                <option value="15min">15分钟前</option>
+                                                <option value="30min">30分钟前</option>
+                                                <option value="60min">1小时前</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dialog-footer">
+                                    <button class="dialog-btn secondary" id="cancelSyncAll">取消</button>
+                                    <button class="dialog-btn primary" id="confirmSyncAll">创建日程</button>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <button id="refreshCourses" class="sidebar-btn">
                             <i class="fa fa-refresh"></i>
                             <span class="sidebar-text">刷新数据</span>
+                        </button>
+                        
+                        <button id="syncAllCourses" class="sidebar-btn">
+                            <i class="fa fa-calendar-plus-o"></i>
+                            <span class="sidebar-text">创建全部日程</span>
+                        </button>
+                        
+                        <button id="deleteAllCalendar" class="sidebar-btn danger">
+                            <i class="fa fa-calendar-times-o"></i>
+                            <span class="sidebar-text">删除课程日历</span>
                         </button>
                         
                         <button id="deleteCourses" class="sidebar-btn danger">
@@ -207,7 +261,7 @@ function renderAppShell() {
         <div class="main-container">
             <!-- 顶部栏 -->
             <header class="top-bar">
-                <div class="week-navigator">
+                <div class="week-navigator" id="weekNavigator">
                     <button id="prevWeekBtn" class="week-nav-btn" title="上一周">
                         <i class="fa fa-chevron-left"></i>
                     </button>
@@ -226,13 +280,56 @@ function renderAppShell() {
             
             <!-- 课程表内容 -->
             <main class="content-area">
-                <div id="courseTable" class="course-table-container"></div>
+                <!-- 课程表视图 -->
+                <div id="scheduleView" class="view-container">
+                    <div id="courseTable" class="course-table-container"></div>
+                    
+                    <!-- 空状态 -->
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <i class="fa fa-calendar-o"></i>
+                        <h3>暂无课程数据</h3>
+                        <p>请先导入课程表</p>
+                    </div>
+                </div>
                 
-                <!-- 空状态 -->
-                <div id="emptyState" class="empty-state" style="display: none;">
-                    <i class="fa fa-calendar-o"></i>
-                    <h3>暂无课程数据</h3>
-                    <p>请先导入课程表</p>
+                <!-- 课程管理视图 -->
+                <div id="managementView" class="view-container" style="display: none;">
+                    <div class="management-container">
+                        <div class="management-header" style="
+                            display: flex;
+                            align-items: center;
+                            padding: 20px;
+                            border-bottom: 1px solid #e0e0e0;
+                            background: white;
+                        ">
+                            <button id="backToHome" class="action-btn" style="
+                                border: none;
+                                background: none;
+                                color: #666;
+                                cursor: pointer;
+                                font-size: 14px;
+                                padding: 8px 12px;
+                                border-radius: 6px;
+                                transition: all 0.3s;
+                            " onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">
+                                <i class="fa fa-arrow-left" style="margin-right: 6px;"></i> 返回
+                            </button>
+                            <div style="
+                                flex: 1;
+                                text-align: center;
+                                font-size: 18px;
+                                font-weight: 500;
+                                color: #333;
+                            ">
+                                <i class="fa fa-list-alt" style="margin-right: 8px; color: #667eea;"></i>
+                                课程日程管理
+                            </div>
+                            <div style="width: 60px;"></div> <!-- 占位元素，保持标题居中 -->
+                        </div>
+                        <div id="courseList" class="course-list">
+                            <!-- 动态生成课程列表 -->
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -258,19 +355,19 @@ async function checkLoginStatus() {
 			const userInfo = await feishuClient.getCurrentUser();
 			renderAppShell(); // 重新渲染主界面
 			showUserSection(userInfo);
-			
+
 			// 初始化当前查看周（周末时显示下一周）
 			const actualCurrentWeek = courseSchedule.getCurrentWeek();
 			const now = new Date();
 			const dayOfWeek = now.getDay(); // 0是周日，6是周六
-			
-			
+
+
 			if (dayOfWeek === 0 || dayOfWeek === 6) {
 				currentViewWeek = Math.min(actualCurrentWeek + 1, courseSchedule.getTotalWeeks());
-							} else {
+			} else {
 				currentViewWeek = actualCurrentWeek;
-							}
-			
+			}
+
 			await loadAndRenderCourses();
 
 			// 默认收起侧边栏
@@ -285,7 +382,7 @@ async function checkLoginStatus() {
 			renderAppShell();
 		}
 	} catch (error) {
-				showMessage('登录状态验证失败，请重新登录', 'error');
+		showMessage('登录状态验证失败，请重新登录', 'error');
 		renderAppShell();
 	}
 }
@@ -334,7 +431,7 @@ async function handleAuthCallback(code, state) {
 			avatarToggle.style.display = 'flex';
 		}
 	} catch (error) {
-				// 授权失败时显示登录页
+		// 授权失败时显示登录页
 		renderAppShell();
 		showMessage('授权失败: ' + error.message, 'error');
 	}
@@ -346,8 +443,7 @@ async function handleLogin() {
 	const authUrl = await feishuClient.getAuthorizationUrl([
 		'base:view:read', 'base:table:read', 'base:app:read',
 		'base:record:create', 'base:record:retrieve',
-		'calendar:calendar', 'calendar:calendar:read', 'calendar:event'
-		// 'base:record:retrieve', 'bitable:app'
+		'calendar:calendar', 'calendar:calendar:create', 'calendar:calendar:read'
 	]);
 	window.location.href = authUrl;
 }
@@ -385,6 +481,61 @@ function showUserSection(userInfo) {
 
 	// 添加导入按钮点击事件
 	document.getElementById('importBtn')?.addEventListener('click', showImportDialog);
+
+	// 添加首页/课程表按钮点击事件
+	document.getElementById('homeBtn')?.addEventListener('click', () => {
+		// 显示课程表视图
+		document.getElementById('scheduleView').style.display = 'block';
+		// 隐藏课程管理视图
+		document.getElementById('managementView').style.display = 'none';
+		// 显示周导航
+		document.getElementById('weekNavigator').style.display = 'flex';
+	});
+
+	// 添加课程管理按钮点击事件
+	document.getElementById('courseManageBtn')?.addEventListener('click', async () => {
+		// 隐藏课程表视图
+		document.getElementById('scheduleView').style.display = 'none';
+		// 显示课程管理视图
+		document.getElementById('managementView').style.display = 'block';
+		// 隐藏周导航
+		document.getElementById('weekNavigator').style.display = 'none';
+		// 加载课程管理页面
+		await loadCourseManagement();
+	});
+
+	// 添加返回首页按钮事件（课程管理页面顶部）
+	document.addEventListener('click', (e) => {
+		if (e.target.closest('#backToHome')) {
+			// 显示课程表视图
+			document.getElementById('scheduleView').style.display = 'block';
+			// 隐藏课程管理视图
+			document.getElementById('managementView').style.display = 'none';
+			// 显示周导航
+			document.getElementById('weekNavigator').style.display = 'flex';
+		}
+	});
+
+	// 初始化导入对话框
+	initImportDialog();
+	
+	// 添加创建全部日程按钮事件
+	document.getElementById('syncAllCourses')?.addEventListener('click', showSyncAllDialog);
+	
+	// 添加删除课程日历按钮事件
+	document.getElementById('deleteAllCalendar')?.addEventListener('click', async () => {
+		if (confirm('确定要删除课程日历吗？这将删除所有已创建的课程日程，并清空数据库中的日程ID。')) {
+			try {
+				await deleteCourseCalendar();
+				// 如果在课程管理页面，刷新页面以更新状态
+				if (document.getElementById('managementView').style.display !== 'none') {
+					await loadCourseManagement();
+				}
+			} catch (error) {
+				showMessage('删除失败: ' + error.message, 'error');
+			}
+		}
+	});
 
 	// 初始化导入对话框
 	initImportDialog();
@@ -440,26 +591,41 @@ async function handleFileImport(event, customFile = null, shouldSync = false, re
 		};
 		// 转换数据格式
 		const courseMetadatas = jsonData.map(course => convertCamelToSnake(course));
-		// 导入课程数据
-		const courses = await feishuClient.importMetadatasToCourseInfoTable(courseMetadatas);
+		// 导入课程数据到飞书多维表，返回创建的记录
+		const importedRecords = await feishuClient.importMetadatasToCourseInfoTable(courseMetadatas);
 		
+		// 导入CourseRecord类和处理函数
+		const { processFeishuRecords } = await import('./js/CourseRecord.js');
+		
+		// 直接使用导入返回的记录转换为CourseRecord对象
+		const courses = processFeishuRecords(importedRecords || []);
+		console.log('导入的返回数据:', importedRecords)
+		console.log('导入的课程数据:', courses);
+
 		// 更新全局课程数据
-		allCourses = courses;
-		
+		await updateWeekView()
+
 		// 设置当前查看周为当前周
 		currentViewWeek = courseSchedule.getCurrentWeek();
 
 		// 如果选择了同步到日程
 		if (shouldSync) {
-			showMessage('正在同步到飞书日程...');
-			await syncCoursesToCalendar(courses, reminderOption);
+			// 过滤出没有event_id的课程（未创建日程的）
+			const unscheduledCourses = courses.filter(course => !course.eventId);
+			
+			if (unscheduledCourses.length === 0) {
+				showMessage('所有课程都已有日程，无需重复创建', 'info');
+			} else {
+				showMessage(`正在同步 ${unscheduledCourses.length} 门课程到飞书日程...`);
+				await syncCoursesToCalendar(unscheduledCourses, reminderOption);
+			}
 		}
 
 		// 根据当前周过滤并渲染
 		const weekCourses = courseSchedule.filterCoursesByWeek(courses, currentViewWeek);
 		renderCourseTable(weekCourses);
 		updateWeekDisplay();
-		
+
 		if (!shouldSync) {
 			showMessage(`成功导入 ${courses.length} 门课程`);
 		}
@@ -495,16 +661,16 @@ async function loadAndRenderCourses() {
 			const actualCurrentWeek = courseSchedule.getCurrentWeek();
 			const now = new Date();
 			const dayOfWeek = now.getDay(); // 0是周日，6是周六
-			
+
 			// 如果是周末，默认显示下一周
 			if (dayOfWeek === 0 || dayOfWeek === 6) {
 				currentViewWeek = Math.min(actualCurrentWeek + 1, courseSchedule.getTotalWeeks());
-							} else {
+			} else {
 				currentViewWeek = actualCurrentWeek;
 			}
 		}
-		
-				
+
+
 		// 使用用户的openId和指定周数获取课程记录
 		const recordsData = await feishuClient.getCourseInfoTableMetadata(userInfo?.openId, currentViewWeek);
 
@@ -513,15 +679,15 @@ async function loadAndRenderCourses() {
 
 		// 使用批量处理函数
 		allCourses = processFeishuRecords(recordsData.items);
-		
-				
+
+
 		// API已经返回了指定周的课程，直接渲染
 		renderCourseTable(allCourses);
 		updateWeekDisplay();
 		showMessage(`第${currentViewWeek}周课程已加载`);
 
 	} catch (error) {
-				showMessage('加载课程失败: ' + error.message, 'error');
+		showMessage('加载课程失败: ' + error.message, 'error');
 	}
 }
 
@@ -545,20 +711,20 @@ function renderCourseTable(courses) {
 	const currentHour = now.getHours();
 	const currentMinute = now.getMinutes();
 	const currentTime = currentHour * 60 + currentMinute; // 转换为分钟数便于比较
-	
+
 	// 判断查看的周和今天的关系
 	const actualCurrentWeek = courseSchedule.getCurrentWeek();
 	const isViewingCurrentWeek = currentViewWeek === actualCurrentWeek;
 	const isViewingFutureWeek = currentViewWeek > actualCurrentWeek;
-	
+
 	// 判断今天是否是工作日（周一到周五）
 	const isTodayWorkday = currentDay >= 1 && currentDay <= 5;
-	
+
 	// 高亮条件：
 	// 只在查看当前周且今天是工作日时高亮今天
 	let shouldShowTodayHighlight = false;
 	let highlightDay = 0; // 要高亮的星期几
-	
+
 	if (isViewingCurrentWeek && isTodayWorkday) {
 		// 当前周且今天是工作日，高亮今天
 		shouldShowTodayHighlight = true;
@@ -610,7 +776,7 @@ function renderCourseTable(courses) {
 	// 只在查看当前实际周且是工作日时才找出当前正在进行的课程和下一节课
 	let currentCourse = null;
 	let nextCourse = null;
-	
+
 	if (shouldShowTodayHighlight) {
 		// 今天的课程
 		const todayCourses = coursesByDay[currentDay];
@@ -1059,7 +1225,7 @@ function initImportDialog() {
 	// 关闭按钮事件
 	closeBtn?.addEventListener('click', closeImportDialog);
 	cancelBtn?.addEventListener('click', closeImportDialog);
-	
+
 	// 同步日程复选框变化事件
 	syncCalendarCheckbox?.addEventListener('change', (e) => {
 		if (e.target.checked) {
@@ -1091,14 +1257,14 @@ function initImportDialog() {
 
 		// 获取是否同步到日程的选项
 		const shouldSync = document.getElementById('syncCalendar').checked;
-		
+
 		// 获取提醒选项
 		let reminderOption = 'none';
 		if (shouldSync) {
-			const selectedReminder = document.querySelector('input[name="reminder"]:checked');
-			reminderOption = selectedReminder ? selectedReminder.value : 'none';
+			const reminderSelect = document.querySelector('select[name="reminder"]');
+			reminderOption = reminderSelect ? reminderSelect.value : 'none';
 		}
-		
+
 		await handleFileImport(null, file, shouldSync, reminderOption);
 		closeImportDialog();
 	});
@@ -1162,15 +1328,15 @@ async function syncCoursesToCalendar(courses, reminderOption = 'none') {
 	// 导入CalendarSync类
 	const { CalendarSync } = await import('./js/CalendarSync.js');
 	const calendarSync = new CalendarSync(feishuClient);
-	
+
 	// 显示进度对话框
 	const progressDialog = document.getElementById('syncProgressDialog');
 	const progressBarFill = document.getElementById('progressBarFill');
 	const progressText = document.getElementById('progressText');
 	const progressDetails = document.getElementById('progressDetails');
-	
+
 	progressDialog.style.display = 'flex';
-	
+
 	try {
 		// 同步课程到日历
 		const result = await calendarSync.syncCoursesToCalendar(
@@ -1184,32 +1350,45 @@ async function syncCoursesToCalendar(courses, reminderOption = 'none') {
 				progressDetails.textContent = `正在处理: ${progress.courseName}`;
 			}
 		);
-		
+
 		// 隐藏进度对话框
 		setTimeout(() => {
 			progressDialog.style.display = 'none';
 		}, 500);
-		
+
 		// 显示同步结果
-		if (result.failed.length > 0) {
-			showMessage(
-				`同步完成：成功 ${result.success.length} 门，失败 ${result.failed.length} 门`,
-				'warning'
-			);
-			console.error('同步失败的课程:', result.failed);
+		const skippedCount = result.skipped ? result.skipped.length : 0;
+		
+		if (result.failed.length > 0 || skippedCount > 0) {
+			let message = `同步完成：成功 ${result.success.length} 门`;
+			if (result.failed.length > 0) {
+				message += `，失败 ${result.failed.length} 门`;
+			}
+			if (skippedCount > 0) {
+				message += `，跳过 ${skippedCount} 门(已存在)`;
+			}
+			
+			showMessage(message, result.failed.length > 0 ? 'warning' : 'info');
+			
+			if (result.failed.length > 0) {
+				console.error('同步失败的课程:', result.failed);
+			}
+			if (skippedCount > 0) {
+				console.log('跳过的课程:', result.skipped);
+			}
 		} else {
 			showMessage(
 				`成功同步 ${result.success.length} 门课程到飞书日程`,
 				'success'
 			);
 		}
-		
+
 		return result;
-		
+
 	} catch (error) {
 		// 隐藏进度对话框
 		progressDialog.style.display = 'none';
-		
+
 		showMessage('同步到日程失败: ' + error.message, 'error');
 		throw error;
 	}
@@ -1246,7 +1425,7 @@ function initWeekNavigation() {
 	const prevBtn = document.getElementById('prevWeekBtn');
 	const nextBtn = document.getElementById('nextWeekBtn');
 	const currentBtn = document.getElementById('currentWeekBtn');
-	
+
 	// 上一周按钮
 	prevBtn?.addEventListener('click', async () => {
 		if (currentViewWeek > 1) {
@@ -1254,7 +1433,7 @@ function initWeekNavigation() {
 			await updateWeekView();
 		}
 	});
-	
+
 	// 下一周按钮
 	nextBtn?.addEventListener('click', async () => {
 		if (currentViewWeek < courseSchedule.getTotalWeeks()) {
@@ -1262,7 +1441,7 @@ function initWeekNavigation() {
 			await updateWeekView();
 		}
 	});
-	
+
 	// 回到当前周按钮
 	currentBtn?.addEventListener('click', async () => {
 		currentViewWeek = courseSchedule.getCurrentWeek();
@@ -1273,28 +1452,28 @@ function initWeekNavigation() {
 // 更新周视图
 async function updateWeekView() {
 	// 每次切换周都重新从飞书获取数据
-		
+
 	try {
 		showMessage(`正在加载第${currentViewWeek}周课程...`);
-		
+
 		// 从飞书获取指定周的课程数据
 		const userInfo = JSON.parse(localStorage.getItem('feishu_current_user'));
 		const recordsData = await feishuClient.getCourseInfoTableMetadata(userInfo?.openId, currentViewWeek);
-		
+
 		// 导入CourseRecord类和处理函数
 		const { processFeishuRecords } = await import('./js/CourseRecord.js');
-		
+
 		// 处理数据
 		allCourses = processFeishuRecords(recordsData.items);
-				
+
 		// 这里不需要再过滤了，因为API已经返回了指定周的课程
 		renderCourseTable(allCourses);
 		updateWeekDisplay();
 		updateWeekNavigationButtons();
-		
+
 		showMessage(`第${currentViewWeek}周已加载`);
 	} catch (error) {
-				showMessage('加载课程失败: ' + error.message, 'error');
+		showMessage('加载课程失败: ' + error.message, 'error');
 	}
 }
 
@@ -1303,18 +1482,18 @@ function updateWeekDisplay() {
 	const weekNumberEl = document.getElementById('weekNumber');
 	const weekDateRangeEl = document.getElementById('weekDateRange');
 	const currentWeekBtnEl = document.getElementById('currentWeekBtn');
-	
+
 	if (weekNumberEl) {
 		weekNumberEl.textContent = `第${currentViewWeek}周`;
 	}
-	
+
 	if (weekDateRangeEl) {
 		const dateRange = courseSchedule.getWeekDateRange(currentViewWeek);
 		const startStr = dateRange.start.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 		const endStr = dateRange.end.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 		weekDateRangeEl.textContent = `(${startStr} - ${endStr})`;
 	}
-	
+
 	// 如果是当前周，隐藏"本周"按钮
 	const actualCurrentWeek = courseSchedule.getCurrentWeek();
 	if (currentWeekBtnEl) {
@@ -1330,18 +1509,479 @@ function updateWeekDisplay() {
 function updateWeekNavigationButtons() {
 	const prevBtn = document.getElementById('prevWeekBtn');
 	const nextBtn = document.getElementById('nextWeekBtn');
-	
+
 	// 检查边界，禁用相应按钮
 	if (prevBtn) {
 		prevBtn.disabled = currentViewWeek <= 1;
 		prevBtn.style.opacity = currentViewWeek <= 1 ? '0.5' : '1';
 		prevBtn.style.cursor = currentViewWeek <= 1 ? 'not-allowed' : 'pointer';
 	}
-	
+
 	if (nextBtn) {
 		const totalWeeks = courseSchedule.getTotalWeeks();
 		nextBtn.disabled = currentViewWeek >= totalWeeks;
 		nextBtn.style.opacity = currentViewWeek >= totalWeeks ? '0.5' : '1';
 		nextBtn.style.cursor = currentViewWeek >= totalWeeks ? 'not-allowed' : 'pointer';
+	}
+}
+
+// 显示创建全部日程对话框
+async function showSyncAllDialog() {
+	try {
+		showMessage('正在加载全部课程...');
+		
+		// 获取全部课程
+		const recordsData = await feishuClient.getAllUserCourses();
+		const { processFeishuRecords } = await import('./js/CourseRecord.js');
+		const allCourses = processFeishuRecords(recordsData.items || []);
+		
+		// 过滤出没有event_id的课程（未创建日程的）
+		const unscheduledCourses = allCourses.filter(course => !course.eventId);
+		
+		if (unscheduledCourses.length === 0) {
+			showMessage('所有课程都已创建日程', 'info');
+			return;
+		}
+		
+		// 生成课程列表HTML
+		const courseListHTML = unscheduledCourses.map((course, index) => `
+			<div class="course-check-item" style="padding: 10px; border-bottom: 1px solid #f0f0f0;">
+				<label class="checkbox-label" style="display: flex; align-items: center;">
+					<input type="checkbox" class="course-checkbox" data-index="${index}" checked>
+					<div style="margin-left: 10px;">
+						<div style="font-weight: 500;">${course.courseName}</div>
+						<div style="font-size: 12px; color: #666;">
+							${course.teacher || ''} | ${course.location || ''} | 
+							周${course.dayOfWeek} 第${course.startPeriod}-${course.endPeriod}节 | 
+							第${course.startWeek}-${course.endWeek}周
+						</div>
+					</div>
+				</label>
+			</div>
+		`).join('');
+		
+		document.getElementById('courseCheckList').innerHTML = courseListHTML;
+		
+		// 显示对话框
+		const dialog = document.getElementById('syncAllDialog');
+		dialog.style.display = 'flex';
+		
+		// 全选功能
+		const selectAllCheckbox = document.getElementById('selectAllCourses');
+		selectAllCheckbox.addEventListener('change', (e) => {
+			const checkboxes = document.querySelectorAll('.course-checkbox');
+			checkboxes.forEach(cb => cb.checked = e.target.checked);
+		});
+		
+		// 监听单个复选框变化，更新全选状态
+		document.querySelectorAll('.course-checkbox').forEach(checkbox => {
+			checkbox.addEventListener('change', () => {
+				const allCheckboxes = document.querySelectorAll('.course-checkbox');
+				const checkedCheckboxes = document.querySelectorAll('.course-checkbox:checked');
+				
+				// 如果所有复选框都选中，全选框也选中
+				// 如果有任何一个未选中，全选框取消选中
+				selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+				
+				// 如果有部分选中但不是全部，设置不确定状态（如果支持）
+				if (checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length) {
+					selectAllCheckbox.indeterminate = true;
+				} else {
+					selectAllCheckbox.indeterminate = false;
+				}
+			});
+		});
+		
+		// 关闭按钮
+		document.getElementById('closeSyncAllDialog').addEventListener('click', () => {
+			dialog.style.display = 'none';
+		});
+		
+		document.getElementById('cancelSyncAll').addEventListener('click', () => {
+			dialog.style.display = 'none';
+		});
+		
+		// 确认创建
+		document.getElementById('confirmSyncAll').addEventListener('click', async () => {
+			// 获取选中的课程
+			const selectedIndexes = Array.from(document.querySelectorAll('.course-checkbox:checked'))
+				.map(cb => parseInt(cb.dataset.index));
+			
+			if (selectedIndexes.length === 0) {
+				showMessage('请至少选择一门课程', 'warning');
+				return;
+			}
+			
+			const selectedCourses = selectedIndexes.map(i => unscheduledCourses[i]);
+			const reminderOption = document.querySelector('select[name="batchReminder"]').value;
+			
+			// 关闭对话框
+			dialog.style.display = 'none';
+			
+			// 同步选中的课程
+			await syncCoursesToCalendar(selectedCourses, reminderOption);
+		});
+		
+		showMessage(`找到 ${unscheduledCourses.length} 门未创建日程的课程`, 'success');
+		
+	} catch (error) {
+		showMessage('加载课程失败: ' + error.message, 'error');
+	}
+}
+
+// 删除课程日历
+async function deleteCourseCalendar() {
+	try {
+		// 获取存储的日历ID
+		const calendarId = localStorage.getItem('course_calendar_id');
+		if (!calendarId) {
+			showMessage('未找到课程日历', 'warning');
+			return;
+		}
+		
+		showMessage('正在删除日历和清空记录...');
+		
+		// 1. 调用删除日历API
+		try {
+			await feishuClient.delete(`/calendar/v4/calendars/${calendarId}`);
+		} catch (error) {
+			console.log('删除日历失败，可能日历已不存在:', error);
+		}
+		
+		// 2. 清除本地存储的日历ID
+		localStorage.removeItem('course_calendar_id');
+		
+		// 3. 使用CalendarSync类的批量清空方法
+		try {
+			// 导入CalendarSync类
+			const { CalendarSync } = await import('./js/CalendarSync.js');
+			const calendarSync = new CalendarSync(feishuClient);
+			
+			// 批量清空所有event_id
+			const result = await calendarSync.clearAllCourseEventIds();
+			
+			if (result.total > 0) {
+				showMessage(
+					`已清空 ${result.success}/${result.total} 条课程的日程ID` + 
+					(result.failed > 0 ? `，${result.failed} 条失败` : ''), 
+					result.failed > 0 ? 'warning' : 'info'
+				);
+			}
+		} catch (error) {
+			console.error('清空数据库event_id失败:', error);
+			showMessage('清空日程ID失败，但日历已删除', 'warning');
+		}
+		
+		// 4. 刷新当前页面的数据
+		await updateWeekView();
+		
+		showMessage('课程日历已删除，所有日程ID已清空', 'success');
+	} catch (error) {
+		console.error('删除日历失败:', error);
+		throw error;
+	}
+}
+
+// 加载课程管理页面
+async function loadCourseManagement() {
+	try {
+		showMessage('正在加载课程列表...', 'info');
+		
+		// 获取所有课程（不限周数）
+		const recordsData = await feishuClient.getAllUserCourses();
+		const { processFeishuRecords } = await import('./js/CourseRecord.js');
+		const allCourses = processFeishuRecords(recordsData.items || []);
+		
+		// 渲染课程列表
+		renderCourseManagement(allCourses);
+		
+		showMessage(`已加载 ${allCourses.length} 门课程`, 'success');
+	} catch (error) {
+		showMessage('加载课程失败: ' + error.message, 'error');
+	}
+}
+
+// 渲染课程管理列表
+function renderCourseManagement(courses) {
+	const courseListElement = document.getElementById('courseList');
+	
+	if (!courses || courses.length === 0) {
+		courseListElement.innerHTML = `
+			<div class="empty-state" style="text-align: center; padding: 60px 20px;">
+				<i class="fa fa-inbox" style="font-size: 48px; color: #999; margin-bottom: 20px;"></i>
+				<h3 style="color: #666; margin-bottom: 10px;">暂无课程数据</h3>
+				<p style="color: #999;">请先导入课程表</p>
+			</div>
+		`;
+		return;
+	}
+	
+	// 按周分组课程
+	const coursesByWeek = {};
+	courses.forEach(course => {
+		for (let week = course.startWeek; week <= course.endWeek; week++) {
+			if (!coursesByWeek[week]) {
+				coursesByWeek[week] = [];
+			}
+			coursesByWeek[week].push(course);
+		}
+	});
+	
+	// 统计信息
+	const totalCourses = courses.length;
+	const syncedCourses = courses.filter(c => c.eventId).length;
+	const unsyncedCourses = totalCourses - syncedCourses;
+	
+	// 生成改进的UI
+	const courseCards = courses.map((course, index) => {
+		const hasEvent = course.eventId ? true : false;
+		const dayNames = ['', '周一', '周二', '周三', '周四', '周五'];
+		
+		return `
+			<div class="course-card" style="
+				border: 1px solid ${hasEvent ? '#e8f5e9' : '#fff3e0'};
+				border-radius: 12px;
+				padding: 20px;
+				margin-bottom: 16px;
+				background: white;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+				transition: all 0.3s ease;
+				position: relative;
+				overflow: hidden;
+			" 
+			onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)'"
+			onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'; this.style.transform='translateY(0)'">
+				<!-- 状态指示条 -->
+				<div style="
+					position: absolute;
+					top: 0;
+					left: 0;
+					width: 4px;
+					height: 100%;
+					background: ${hasEvent ? '#4caf50' : '#ff9800'};
+				"></div>
+				
+				<div style="display: flex; justify-content: space-between; align-items: start;">
+					<div style="flex: 1; padding-left: 12px;">
+						<!-- 课程名称和代码 -->
+						<div style="margin-bottom: 12px;">
+							<h3 style="margin: 0; color: #333; font-size: 18px; font-weight: 600;">
+								${course.courseName}
+							</h3>
+							${course.courseCode ? `
+								<span style="
+									display: inline-block;
+									margin-top: 6px;
+									padding: 2px 8px;
+									background: #f5f5f5;
+									border-radius: 4px;
+									font-size: 12px;
+									color: #666;
+								">${course.courseCode}</span>
+							` : ''}
+						</div>
+						
+						<!-- 课程详细信息网格 -->
+						<div style="
+							display: grid;
+							grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+							gap: 12px;
+							margin-bottom: 12px;
+						">
+							<div style="display: flex; align-items: center; color: #666; font-size: 14px;">
+								<i class="fa fa-user-o" style="width: 20px; color: #999;"></i>
+								<span>教师: ${course.teacher || '未指定'}</span>
+							</div>
+							<div style="display: flex; align-items: center; color: #666; font-size: 14px;">
+								<i class="fa fa-map-marker" style="width: 20px; color: #999;"></i>
+								<span>地点: ${course.location || '未指定'}</span>
+							</div>
+							<div style="display: flex; align-items: center; color: #666; font-size: 14px;">
+								<i class="fa fa-calendar-o" style="width: 20px; color: #999;"></i>
+								<span>${dayNames[course.dayOfWeek]} 第${course.startPeriod}-${course.endPeriod}节</span>
+							</div>
+							<div style="display: flex; align-items: center; color: #666; font-size: 14px;">
+								<i class="fa fa-clock-o" style="width: 20px; color: #999;"></i>
+								<span>第${course.startWeek}-${course.endWeek}周</span>
+							</div>
+						</div>
+						
+						${course.studentName ? `
+							<div style="
+								padding-top: 12px;
+								border-top: 1px solid #f0f0f0;
+								font-size: 13px;
+								color: #999;
+							">
+								<i class="fa fa-graduation-cap" style="margin-right: 6px;"></i>
+								学生: ${course.studentName}
+							</div>
+						` : ''}
+					</div>
+					
+					<!-- 操作区域 -->
+					<div style="
+						display: flex;
+						flex-direction: column;
+						align-items: center;
+						gap: 12px;
+						padding-left: 20px;
+					">
+						<!-- 同步状态 -->
+						<div style="
+							padding: 6px 12px;
+							border-radius: 20px;
+							font-size: 12px;
+							font-weight: 500;
+							white-space: nowrap;
+							${hasEvent ? 
+								'background: #e8f5e9; color: #2e7d32;' : 
+								'background: #fff3e0; color: #f57c00;'}
+						">
+							<i class="fa ${hasEvent ? 'fa-check-circle' : 'fa-exclamation-circle'}" 
+								style="margin-right: 4px;"></i>
+							${hasEvent ? '已同步' : '未同步'}
+						</div>
+						
+						<!-- 操作按钮 -->
+						<button class="course-action-btn" 
+							data-index="${index}"
+							data-has-event="${hasEvent}"
+							style="
+								padding: 8px 16px;
+								border: none;
+								border-radius: 8px;
+								font-size: 14px;
+								font-weight: 500;
+								cursor: pointer;
+								transition: all 0.3s;
+								white-space: nowrap;
+								${hasEvent ? 
+									'background: #ffebee; color: #c62828;' : 
+									'background: #e3f2fd; color: #1565c0;'}
+							"
+							onmouseover="this.style.transform='scale(1.05)'"
+							onmouseout="this.style.transform='scale(1)'"
+						>
+							<i class="fa ${hasEvent ? 'fa-calendar-times-o' : 'fa-calendar-plus-o'}" 
+								style="margin-right: 6px;"></i>
+							${hasEvent ? '取消订阅' : '订阅日程'}
+						</button>
+					</div>
+				</div>
+			</div>
+		`;
+	}).join('');
+	
+	courseListElement.innerHTML = `
+		<div style="padding: 20px;">
+			<!-- 简洁的统计信息 -->
+			<div style="
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-bottom: 20px;
+				padding: 16px;
+				background: #f5f5f5;
+				border-radius: 8px;
+				font-size: 14px;
+			">
+				<div style="display: flex; gap: 24px;">
+					<span>共 <strong style="color: #667eea; font-size: 18px;">${totalCourses}</strong> 门课程</span>
+					<span style="color: #4caf50;">已同步 <strong style="font-size: 18px;">${syncedCourses}</strong></span>
+					<span style="color: #ff9800;">未同步 <strong style="font-size: 18px;">${unsyncedCourses}</strong></span>
+				</div>
+				<div style="color: #666;">
+					<i class="fa fa-info-circle" style="margin-right: 4px;"></i>
+					点击按钮管理日程订阅
+				</div>
+			</div>
+			
+			<!-- 课程列表 -->
+			<div class="course-management-list" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+				${courseCards}
+			</div>
+		</div>
+	`;
+	
+	// 绑定订阅/取消订阅事件
+	document.querySelectorAll('.course-action-btn').forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			const index = parseInt(btn.dataset.index);
+			const hasEvent = btn.dataset.hasEvent === 'true';
+			const course = courses[index];
+			
+			// 添加加载状态
+			btn.disabled = true;
+			btn.innerHTML = hasEvent ? 
+				'<i class="fa fa-spinner fa-spin"></i> 处理中...' : 
+				'<i class="fa fa-spinner fa-spin"></i> 处理中...';
+			
+			try {
+				if (hasEvent) {
+					// 取消订阅（删除日程）
+					await unsubscribeCourse(course);
+				} else {
+					// 订阅日程
+					await subscribeCourse(course);
+				}
+				
+				// 刷新页面
+				await loadCourseManagement();
+			} catch (error) {
+				// 恢复按钮状态
+				btn.disabled = false;
+				btn.innerHTML = hasEvent ? 
+					'<i class="fa fa-calendar-times-o" style="margin-right: 6px;"></i>取消订阅' : 
+					'<i class="fa fa-calendar-plus-o" style="margin-right: 6px;"></i>订阅日程';
+			}
+		});
+	});
+}
+
+// 订阅单个课程到日历
+async function subscribeCourse(course) {
+	try {
+		showMessage(`正在订阅课程: ${course.courseName}...`, 'info');
+		
+		// 初始化CalendarSync
+		const { CalendarSync } = await import('./js/CalendarSync.js');
+		const calendarSync = new CalendarSync(feishuClient);
+		
+		// 同步单个课程，默认不提醒
+		await calendarSync.syncCoursesToCalendar([course], 'none');
+		
+		showMessage(`课程 ${course.courseName} 已成功订阅`, 'success');
+	} catch (error) {
+		showMessage(`订阅失败: ${error.message}`, 'error');
+	}
+}
+
+// 取消订阅课程（删除日程）
+async function unsubscribeCourse(course) {
+	try {
+		if (!course.eventId) {
+			showMessage('该课程未创建日程', 'warning');
+			return;
+		}
+		
+		// 确认删除
+		if (!confirm(`确定要取消订阅课程 "${course.courseName}" 的日程吗？`)) {
+			return;
+		}
+		
+		showMessage(`正在取消订阅: ${course.courseName}...`, 'info');
+		
+		// 初始化CalendarSync
+		const { CalendarSync } = await import('./js/CalendarSync.js');
+		const calendarSync = new CalendarSync(feishuClient);
+		
+		// 删除课程日程
+		await calendarSync.deleteCourseEvent(course.eventId, course.recordId);
+		
+		showMessage(`课程 ${course.courseName} 的日程已删除`, 'success');
+	} catch (error) {
+		showMessage(`取消订阅失败: ${error.message}`, 'error');
 	}
 }
